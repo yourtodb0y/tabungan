@@ -7,10 +7,9 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Sajikan file frontend dari folder 'public'
+// Menggunakan path.join dan __dirname agar jalurnya absolut di server Vercel
 app.use(express.static(path.join(__dirname, 'public')));
 
-// DATABASE SIMULASI
 let databaseTabungan = {
     totalSaldo: 0,
     logs: []
@@ -46,5 +45,9 @@ app.post('/api/bayar-sukses', (req, res) => {
     res.json({ success: true, message: 'Saldo berhasil diperbarui!' });
 });
 
-// WAJIB UNTUK VERCEL: Eksport app agar bisa dibaca sebagai serverless function
+// Menyediakan rute fallback, jika user akses '/' langsung disajikan index.html
+app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
 module.exports = app;
