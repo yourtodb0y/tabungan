@@ -89,10 +89,21 @@
         let loggedInUser = null;
         let currentQrNominal = 0;
 
-        // Ambil data awal dari Backend pas web dibuka
-        async function loadDataLokal() {
-            const res = await fetch('/api/tabungan');
-            const data = await res.json();
+        // DATABASE SAKTI MENGGUNAKAN LOCALSTORAGE HP
+        function getDatabase() {
+            let data = localStorage.getItem('tabungan_db');
+            if (!data) {
+                return { totalSaldo: 0, logs: [] };
+            }
+            return JSON.parse(data);
+        }
+
+        function saveDatabase(db) {
+            localStorage.setItem('tabungan_db', JSON.stringify(db));
+        }
+
+        function loadDataLokal() {
+            const data = getDatabase();
             document.getElementById('display-saldo').innerText = data.totalSaldo.toLocaleString('id-ID');
             
             const logsContainer = document.getElementById('logs-container');
@@ -108,7 +119,6 @@
             }
         }
 
-        // Trigger login & penamaan
         document.getElementById('btn-login-toggle').onclick = () => {
             if(loggedInUser) {
                 loggedInUser = null;
@@ -136,23 +146,17 @@
             document.getElementById('modal-login').classList.remove('active');
         };
 
-        // Minta QRIS ke Backend
-        document.getElementById('btn-nabung').onclick = async () => {
+        document.getElementById('btn-nabung').onclick = () => {
             if(!loggedInUser) return alert('Login dulu mamen!');
             const nominal = parseInt(document.getElementById('nominal').value);
             if(!nominal || nominal < 10000) return alert('Minimal Rp 10.000!');
 
-            const res = await fetch('/api/nabung', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ nominal, namaUser: loggedInUser })
-            });
-            const data = await res.json();
-
-            currentQrNominal = data.nominal;
-            document.getElementById('qris-nominal-text').innerText = `Rp ${data.nominal.toLocaleString('id-ID')}`;
+            currentQrNominal = nominal;
+            document.getElementById('qris-nominal-text').innerText = `Rp ${nominal.toLocaleString('id-ID')}`;
             document.getElementById('qrcode-box').innerHTML = '';
-            new QRCode(document.getElementById('qrcode-box'), { text: data.qrData, width: 160, height: 160 });
+            
+            const qrDataSimulasi = "https://midtrans.com/simulasi-qris-" + nominal + "-" + Date.now();
+            new QRCode(document.getElementById('qrcode-box'), { text: qrDataSimulasi, width: 160, height: 160 });
             
             document.getElementById('modal-qris').classList.add('active');
             document.getElementById('nominal').value = '';
@@ -160,19 +164,23 @@
 
         document.getElementById('btn-batal-qris').onclick = () => document.getElementById('modal-qris').classList.remove('active');
 
-        // Kirim konfirmasi bayar sukses ke backend
-        document.getElementById('btn-simulasi-bayar').onclick = async () => {
-            await fetch('/api/bayar-sukses', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ nominal: currentQrNominal, namaUser: loggedInUser })
+        document.getElementById('btn-simulasi-bayar').onclick = () => {
+            let db = getDatabase();
+            db.totalSaldo += parseInt(currentQrNominal);
+            
+            const waktu = new Date().toLocaleTimeString('id-ID', {hour: '2-digit', minute:'2-digit'});
+            db.logs.unshift({
+                teks: `Nabung Rp ${parseInt(currentQrNominal).toLocaleString('id-ID')}`,
+                user: loggedInUser,
+                waktu: waktu
             });
+            
+            saveDatabase(db);
             document.getElementById('modal-qris').classList.remove('active');
             loadDataLokal();
-            alert('Tabungan masuk via server cloud!');
+            alert('Tabungan masuk via LocalStorage HP!');
         };
 
-        // Load data tiap kali halaman dimuat
         loadDataLokal();
     </script>
 </body>
