@@ -7,8 +7,9 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Menggunakan path.join dan __dirname agar jalurnya absolut di server Vercel
-app.use(express.static(path.join(__dirname, 'public')));
+// Menggunakan path.resolve agar jalurnya absolut sempurna di serverless function
+const publicPath = path.resolve(__dirname, 'public');
+app.use(express.static(publicPath));
 
 let databaseTabungan = {
     totalSaldo: 0,
@@ -45,9 +46,14 @@ app.post('/api/bayar-sukses', (req, res) => {
     res.json({ success: true, message: 'Saldo berhasil diperbarui!' });
 });
 
-// Menyediakan rute fallback, jika user akses '/' langsung disajikan index.html
+// Sajikan index.html secara eksplisit jika user mengakses halaman utama
+app.get('/', (req, res) => {
+    res.sendFile(path.resolve(publicPath, 'index.html'));
+});
+
+// Fallback untuk rute lainnya
 app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+    res.sendFile(path.resolve(publicPath, 'index.html'));
 });
 
 module.exports = app;
