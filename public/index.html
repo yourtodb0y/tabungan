@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tabungan Arput</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Segoe UI', sans-serif; background-color: #1e1e1e; color: #ffffff; display: flex; justify-content: center; min-height: 100vh; }
+        .phone-wrapper { width: 100%; max-width: 412px; background-color: #222222; position: relative; display: flex; flex-direction: column; box-shadow: 0 0 20px rgba(0,0,0,0.5); }
+        .header-curve { background-color: #e066cc; height: 90px; border-bottom-left-radius: 50% 40px; border-bottom-right-radius: 50% 40px; }
+        .header-title-box { background-color: #2c2c2c; padding: 15px 0; text-align: center; border-bottom: 5px solid #e066cc; }
+        .header-title-box h1 { font-family: 'Times New Roman', serif; font-size: 22px; letter-spacing: 2px; }
+        .content { padding: 20px; flex: 1; display: flex; flex-direction: column; gap: 20px; }
+        .saldo-card { background: #2d2d2d; border: 1px solid #444; border-radius: 12px; padding: 20px; text-align: center; }
+        .saldo-card h2 { color: #e066cc; font-size: 28px; margin-top: 5px; }
+        input { width: 100%; padding: 12px; background: #2d2d2d; border: 1px solid #444; border-radius: 8px; color: white; font-size: 16px; }
+        input:focus { border-color: #e066cc; outline: none; }
+        .btn { width: 100%; padding: 12px; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; }
+        .btn-nabung { background-color: #e066cc; color: white; }
+        .btn-login { background-color: transparent; color: #e066cc; border: 1px solid #e066cc; margin-top: auto; }
+        .logs-section { background: #2d2d2d; border-radius: 12px; padding: 15px; max-height: 200px; overflow-y: auto; }
+        .logs-section h3 { font-size: 16px; margin-bottom: 10px; color: #e066cc; border-bottom: 1px solid #444; padding-bottom: 5px; }
+        .log-item { display: flex; flex-direction: column; font-size: 14px; padding: 8px 0; border-bottom: 1px solid #333; }
+        .log-header { display: flex; justify-content: space-between; }
+        .status-sukses { color: #2ecc71; }
+        .log-user { font-size: 11px; color: #aaa; }
+        .user-info { text-align: center; font-size: 14px; color: #aaa; margin-top: -10px; }
+        .user-info strong { color: #e066cc; }
+        .modal-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.85); display: flex; justify-content: center; align-items: center; padding: 20px; z-index: 100; visibility: hidden; opacity: 0; transition: 0.3s; }
+        .modal-overlay.active { visibility: visible; opacity: 1; }
+        .modal-content { background: #2d2d2d; padding: 25px; border-radius: 15px; width: 100%; text-align: center; border: 1px solid #444; }
+        .btn-google { background: white; color: #444; display: flex; align-items: center; justify-content: center; gap: 10px; }
+        #qrcode-box { background: white; padding: 15px; border-radius: 10px; display: inline-block; margin: 15px 0; }
+        .btn-simulasi-bayar { background-color: #2ecc71; color: white; margin-top: 15px; }
+        .btn-batal { background-color: #e74c3c; color: white; margin-top: 5px; }
+    </style>
+</head>
+<body>
+
+    <div class="phone-wrapper">
+        <div class="header-curve"></div>
+        <div class="header-title-box"><h1>TABUNGAN ARPUT</h1></div>
+
+        <div class="content">
+            <div class="user-info" id="user-info-text">Status: <strong>Belum Login</strong></div>
+            <div class="saldo-card">
+                <p>Total Saldo Kamu</p>
+                <h2>Rp <span id="display-saldo">0</span></h2>
+            </div>
+
+            <div class="input-group">
+                <input type="number" id="nominal" placeholder="Masukkan Nominal Rp">
+                <button class="btn btn-nabung" id="btn-nabung" style="margin-top:10px;">Nabung Sekarang</button>
+            </div>
+
+            <div class="logs-section">
+                <h3>Logs Transaksi</h3>
+                <div id="logs-container"></div>
+            </div>
+            <button class="btn btn-login" id="btn-login-toggle">Login Akun</button>
+        </div>
+
+        <div class="modal-overlay" id="modal-login">
+            <div class="modal-content" id="step-google">
+                <h3 style="margin-bottom:15px;">Sign in to Tabungan Arput</h3>
+                <button class="btn btn-google" id="btn-google-auth">Masuk dengan Google</button>
+            </div>
+            <div class="modal-content" id="step-name" style="display: none;">
+                <h3 style="margin-bottom:15px;">Masukkan Nama Panggilan</h3>
+                <input type="text" id="user-name-input" placeholder="Nama Kamu">
+                <button class="btn btn-nabung" id="btn-save-profile" style="margin-top:10px;">Simpan</button>
+            </div>
+        </div>
+
+        <div class="modal-overlay" id="modal-qris">
+            <div class="modal-content">
+                <h3 style="font-style:italic;">QRIS GPN</h3>
+                <h2 style="color: #e066cc; margin: 10px 0;" id="qris-nominal-text">Rp 0</h2>
+                <div id="qrcode-box"></div>
+                <button class="btn btn-simulasi-bayar" id="btn-simulasi-bayar">Bayar Sekarang</button>
+                <button class="btn btn-batal" id="btn-batal-qris">Batal</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let loggedInUser = null;
+        let currentQrNominal = 0;
+
+        // Ambil data awal dari Backend pas web dibuka
+        async function loadDataLokal() {
+            const res = await fetch('/api/tabungan');
+            const data = await res.json();
+            document.getElementById('display-saldo').innerText = data.totalSaldo.toLocaleString('id-ID');
+            
+            const logsContainer = document.getElementById('logs-container');
+            if(data.logs.length === 0) {
+                logsContainer.innerHTML = '<div style="color:#aaa; text-align:center; padding:10px;">Belum ada riwayat.</div>';
+            } else {
+                logsContainer.innerHTML = data.logs.map(log => `
+                    <div class="log-item">
+                        <div class="log-header"><span>${log.teks}</span><span class="status-sukses">Sukses</span></div>
+                        <div class="log-user">Oleh: ${log.user} (${log.waktu})</div>
+                    </div>
+                `).join('');
+            }
+        }
+
+        // Trigger login & penamaan
+        document.getElementById('btn-login-toggle').onclick = () => {
+            if(loggedInUser) {
+                loggedInUser = null;
+                document.getElementById('user-info-text').innerHTML = `Status: <strong>Belum Login</strong>`;
+                document.getElementById('btn-login-toggle').innerText = "Login Akun";
+                alert('Logout berhasil!');
+            } else {
+                document.getElementById('modal-login').classList.add('active');
+                document.getElementById('step-google').style.display = 'block';
+                document.getElementById('step-name').style.display = 'none';
+            }
+        };
+
+        document.getElementById('btn-google-auth').onclick = () => {
+            document.getElementById('step-google').style.display = 'none';
+            document.getElementById('step-name').style.display = 'block';
+        };
+
+        document.getElementById('btn-save-profile').onclick = () => {
+            const name = document.getElementById('user-name-input').value.trim();
+            if(!name) return alert('Nama tidak boleh kosong!');
+            loggedInUser = name;
+            document.getElementById('user-info-text').innerHTML = `User: <strong>${loggedInUser}</strong>`;
+            document.getElementById('btn-login-toggle').innerText = "Logout Akun";
+            document.getElementById('modal-login').classList.remove('active');
+        };
+
+        // Minta QRIS ke Backend
+        document.getElementById('btn-nabung').onclick = async () => {
+            if(!loggedInUser) return alert('Login dulu mamen!');
+            const nominal = parseInt(document.getElementById('nominal').value);
+            if(!nominal || nominal < 10000) return alert('Minimal Rp 10.000!');
+
+            const res = await fetch('/api/nabung', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ nominal, namaUser: loggedInUser })
+            });
+            const data = await res.json();
+
+            currentQrNominal = data.nominal;
+            document.getElementById('qris-nominal-text').innerText = `Rp ${data.nominal.toLocaleString('id-ID')}`;
+            document.getElementById('qrcode-box').innerHTML = '';
+            new QRCode(document.getElementById('qrcode-box'), { text: data.qrData, width: 160, height: 160 });
+            
+            document.getElementById('modal-qris').classList.add('active');
+            document.getElementById('nominal').value = '';
+        };
+
+        document.getElementById('btn-batal-qris').onclick = () => document.getElementById('modal-qris').classList.remove('active');
+
+        // Kirim konfirmasi bayar sukses ke backend
+        document.getElementById('btn-simulasi-bayar').onclick = async () => {
+            await fetch('/api/bayar-sukses', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ nominal: currentQrNominal, namaUser: loggedInUser })
+            });
+            document.getElementById('modal-qris').classList.remove('active');
+            loadDataLokal();
+            alert('Tabungan masuk via server cloud!');
+        };
+
+        // Load data tiap kali halaman dimuat
+        loadDataLokal();
+    </script>
+</body>
+</html>
